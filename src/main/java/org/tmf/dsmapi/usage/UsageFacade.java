@@ -1,6 +1,12 @@
 package org.tmf.dsmapi.usage;
 
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.tmf.dsmapi.commons.facade.AbstractFacade;
 import javax.ejb.EJB;
 import javax.ejb.Stateless;
@@ -24,6 +30,7 @@ public class UsageFacade extends AbstractFacade<Usage> {
 
     @PersistenceContext(unitName = "DSUsagePU")
     private EntityManager em;
+
     @EJB
     UsageEventPublisherLocal publisher;
     StateModelImpl stateModel = new StateModelImpl();
@@ -188,5 +195,26 @@ public class UsageFacade extends AbstractFacade<Usage> {
                 }
             }
         }
+    }
+
+    private boolean matchFilters(Usage usage, Map<String, String> filter) {
+        List<String> found = new ArrayList<>();
+
+        for (UsageCharacteristic c: usage.getUsageCharacteristic()) {
+            filter.entrySet().stream()
+                    .filter((entry) -> (entry.getKey().equals(c.getName()) && entry.getValue().equals(c.getValue())
+                        && !found.contains(entry.getKey())))
+                    .forEach((entry) -> {
+                        found.add(entry.getKey());
+            });
+        }
+
+        return found.size() == filter.size();
+    }
+
+    public Set<Usage> filterUsageCharacteristics(Set<Usage> resultSet, Map<String, String> filter) {
+        return resultSet.stream()
+                .filter(usage -> matchFilters(usage, filter))
+                .collect(Collectors.toSet());
     }
 }

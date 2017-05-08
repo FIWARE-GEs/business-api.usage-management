@@ -58,7 +58,7 @@ public class UsageResource {
         Response response = Response.status(Response.Status.CREATED).entity(entity).build();
         return response;
     }
-    
+
     @GET
     @Produces({"application/json"})
     public Response find(@Context UriInfo info) throws BadUsageException {
@@ -67,14 +67,30 @@ public class UsageResource {
         MultivaluedMap<String, String> queryParameters = info.getQueryParameters();
 
         Map<String, List<String>> mutableMap = new HashMap();
-        for (Map.Entry<String, List<String>> e : queryParameters.entrySet()) {
-            mutableMap.put(e.getKey(), e.getValue());
-        }
+        Map<String, String> charactFilter = new HashMap<>();
+
+        queryParameters.entrySet().stream().forEach((e) -> {
+            String[] parsedFilter = e.getKey().split("\\.");
+
+            if(parsedFilter.length == 2 &&
+                    parsedFilter[0].equals("usageCharacteristic") && e.getValue().size() == 1) {
+
+                // Process filters based on characteristics value in a different map
+                // usageCharacteristics.charName=charValue
+                charactFilter.put(parsedFilter[1], e.getValue().get(0));
+
+            } else {
+                mutableMap.put(e.getKey(), e.getValue());
+            }
+        });
 
         // fields to filter view
         Set<String> fieldSet = URIParser.getFieldsSelection(mutableMap);
 
         Set<Usage> resultList = findByCriteria(mutableMap);
+        if(!charactFilter.isEmpty()) {
+            resultList = usageFacade.filterUsageCharacteristics(resultList, charactFilter);
+        }
 
         Response response;
         if (fieldSet.isEmpty() || fieldSet.contains(URIParser.ALL_FIELDS)) {
@@ -90,17 +106,22 @@ public class UsageResource {
     // return Set of unique elements to avoid List with same elements in case of join
     private Set<Usage> findByCriteria(Map<String, List<String>> criteria) throws BadUsageException {
 
-        List<Usage> resultList = null;
+        List<Usage> resultList;
+        Set<Usage> result;
+
         if (criteria != null && !criteria.isEmpty()) {
             resultList = usageFacade.findByCriteria(criteria, Usage.class);
         } else {
             resultList = usageFacade.findAll();
         }
+
         if (resultList == null) {
-            return new LinkedHashSet<Usage>();
+            result = new LinkedHashSet<>();
         } else {
-            return new LinkedHashSet<Usage>(resultList);
+            result = new LinkedHashSet<>(resultList);
         }
+
+        return result;
     }
 
 

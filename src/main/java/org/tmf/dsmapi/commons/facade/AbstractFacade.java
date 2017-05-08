@@ -180,20 +180,22 @@ public abstract class AbstractFacade<T> {
      */
 //    public List<T> findByCriteria(MultivaluedMap<String, String> map, Class<T> clazz) {
     public List<T> findByCriteria(Map<String, List<String>> map, Class<T> clazz) {
-        List<T> resultsList = null;
+        List<T> resultsList;
         try {
             CriteriaBuilder criteriaBuilder = getEntityManager().getCriteriaBuilder();
             CriteriaQuery<T> cq = criteriaBuilder.createQuery(clazz);
-            List<Predicate> andPredicates = new ArrayList<Predicate>();
+            List<Predicate> andPredicates = new ArrayList<>();
             Root<T> tt = cq.from(clazz);
+
             for (Map.Entry<String, List<String>> entry : map.entrySet()) {
                 List<String> valueList = entry.getValue();
-                Predicate predicate = null;
+                Predicate predicate;
+
                 if (valueList.size() > 1) {
                     // name=value1&name=value2&...&name=valueN
                     // value of name is list [value1, value2, ..., valueN]
                     // => name=value1 OR name=value2 OR ... OR name=valueN
-                    List<Predicate> orPredicates = new ArrayList<Predicate>();
+                    List<Predicate> orPredicates = new ArrayList<>();
                     for (String currentValue : valueList) {
                         Predicate orPredicate = buildPredicate(tt, entry.getKey(), currentValue);
                         orPredicates.add(orPredicate);
@@ -207,6 +209,7 @@ public abstract class AbstractFacade<T> {
                 }
                 andPredicates.add(predicate);
             }
+
             cq.where(andPredicates.toArray(new Predicate[andPredicates.size()]));
             cq.select(tt);
             TypedQuery<T> q = getEntityManager().createQuery(cq);
@@ -219,8 +222,9 @@ public abstract class AbstractFacade<T> {
     }
 
     private Predicate buildPredicate(Path<T> tt, String name, String value) throws BadUsageException {
-        Predicate predicate = null;
+        Predicate predicate;
         int index = name.indexOf('.');
+
         if (index > 0 && index < name.length()) {
             // nested format  : rootFieldName.subFieldName=value
             String rootFieldName = name.substring(0, index);
@@ -237,11 +241,12 @@ public abstract class AbstractFacade<T> {
     private Predicate buildSimplePredicate(Path<T> tt, String name, String value) throws BadUsageException {
         Predicate predicate;
         CriteriaBuilder criteriaBuilder = getEntityManager().getCriteriaBuilder();
+
         if (isMultipleAndValue(value)) {
             // name=(subname1=value1&subname2=value2&...&subnameN=valueN) 
             // => name.subname1=value1 AND name.subname2=value2 AND ... AND name.subnameN=valueN
             List<Map.Entry<String, String>> subFieldNameValue = convertMultipleAndValue(value);
-            List<Predicate> andPredicates = new ArrayList<Predicate>();
+            List<Predicate> andPredicates = new ArrayList<>();
             Path<T> root = tt.get(name);
             for (Map.Entry<String, String> entry : subFieldNameValue) {
                 String currentsubFieldName = entry.getKey();
@@ -254,7 +259,7 @@ public abstract class AbstractFacade<T> {
             // name=value1,value2,...,valueN
             // => name=value1 OR name=value2 OR ... OR name=valueN
             List<String> valueList = convertMultipleOrValueToList(value);
-            List<Predicate> orPredicates = new ArrayList<Predicate>();
+            List<Predicate> orPredicates = new ArrayList<>();
             for (String currentValue : valueList) {
                 Predicate orPredicate = buildPredicateWithOperator(tt, name, currentValue);
                 orPredicates.add(orPredicate);
@@ -280,7 +285,7 @@ public abstract class AbstractFacade<T> {
     // convert String "value1,value2,...,valueN" 
     // to List [value1, value2, ..., valueN]
     private static List<String> convertMultipleOrValueToList(String value) {
-        List<String> valueList = new ArrayList<String>();
+        List<String> valueList = new ArrayList<>();
         String[] tokenArray = value.split(",");
         valueList.addAll(Arrays.asList(tokenArray));
         return valueList;
@@ -290,7 +295,7 @@ public abstract class AbstractFacade<T> {
     // to List of Entry [name1=value1, name2=value2, ..., nameN=valueN]
     // Conversion is not to a Map since there can be a same name with differents values
     private static List<Map.Entry<String, String>> convertMultipleAndValue(String multipleValue) {
-        List<Map.Entry<String, String>> nameValueList = new ArrayList<Map.Entry<String, String>>();
+        List<Map.Entry<String, String>> nameValueList = new ArrayList<>();
         if (multipleValue.startsWith("(") && multipleValue.endsWith(")")) {
             String[] tokenArray = multipleValue.substring(1, multipleValue.length() - 1).split("&");
             for (String nameValue : tokenArray) {
@@ -299,7 +304,7 @@ public abstract class AbstractFacade<T> {
                     String name = split[0];
                     String value = split[1];
 
-                    nameValueList.add(new AbstractMap.SimpleEntry<String, String>(name, value));
+                    nameValueList.add(new AbstractMap.SimpleEntry<>(name, value));
                 }
             }
         }
